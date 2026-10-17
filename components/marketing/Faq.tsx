@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: "Which invoices qualify?",
-    a: "In v1, invoices owed in US dollars by independent clients abroad, typically $3,000 to $25,000 on 30 to 90 day terms. The client must have accepted the invoice, and it must not be in dispute.",
+    a: "In v1, invoices owed in US dollars by independent clients, typically $3,000 to $25,000 on 30 to 90 day terms. The client must have accepted the invoice, and it must not be in dispute.",
   },
   {
     q: "What if my client pays me directly?",
