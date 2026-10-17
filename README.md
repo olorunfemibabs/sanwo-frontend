@@ -77,6 +77,10 @@ npm run dev
 After a redeploy, update both IDs and `NEXT_PUBLIC_DEPLOY_LEDGER`, the first
 ledger the app scans for events.
 
+On Vercel, the contract settings already default to this deployment, so no
+environment variables are required. Set `NEXT_PUBLIC_SITE_URL` only to pin a
+custom domain for link previews; otherwise the production domain is used.
+
 ## How it talks to the chain
 
 - `lib/contracts.ts` is the only module that knows the contract interface.

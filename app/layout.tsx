@@ -12,8 +12,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * The site's own address, used to make link-preview URLs absolute. Set
+ * NEXT_PUBLIC_SITE_URL to pin it. On Vercel it otherwise falls back to the
+ * production domain, or to a preview deployment's own URL.
+ */
+function siteUrl(): string {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  const host =
+    process.env.VERCEL_ENV === "production" ? process.env.VERCEL_PROJECT_PRODUCTION_URL : process.env.VERCEL_URL;
+  return host ? `https://${host}` : "http://localhost:3100";
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3100"),
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "Sanwo: get paid before your client pays",
     template: "%s · Sanwo",
