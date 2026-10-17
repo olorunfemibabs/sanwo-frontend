@@ -1,26 +1,359 @@
 @import "tailwindcss";
 
+/* ─── Sanwo design tokens ──────────────────────────────────────────────
+ * A warm off-white canvas, quiet regular-weight type, pill buttons and
+ * softly tinted surfaces, in Sanwo teal with a teal-grey tint and the
+ * Sanwo navy.
+ * ─────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #1b1f22;
+  --ink-2: #2a3034;
+  --ink-3: #3a4146;
+  --paper: #f6f7f6;
+  --paper-2: #eef0ef;
+  --surface: #ffffff;
+  /* App sidebar: a hair off white, with a hairline on its right edge. */
+  --sidebar: #fbfcfb;
+
+  /* Marketing canvases */
+  --warm: #f3f2ee;
+  --tint: #f2f5f3;
+  --tint-2: #e7eeea;
+  --tint-3: #f8faf9;
+  --chip: #dce7e1;
+  --navy: #1a2e44;
+  --navy-2: #24394f;
+
+  --brand: #0f6e56;
+  --brand-strong: #0b5a46;
+  --mint: #e1f0ea;
+  --mint-2: #c2e8d8;
+
+  --line: #e4e7e5;
+  --line-strong: #d2d7d4;
+  --text: #1b1f22;
+  --text-2: #4b5256;
+  --muted: #61686c;
+  --subtle: #8d9396;
+
+  --amber: #9a5b0b;
+  --amber-bg: #fbf0dc;
+  --red: #b42318;
+  --red-bg: #fdecea;
+  --blue: #2c5bd8;
+  --blue-bg: #eaf0fd;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-warm: var(--warm);
+  --color-tint: var(--tint);
+  --color-tint-2: var(--tint-2);
+  --color-tint-3: var(--tint-3);
+  --color-chip: var(--chip);
+  --color-navy: var(--navy);
+  --color-navy-2: var(--navy-2);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-mint: var(--mint);
+  --color-mint-2: var(--mint-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-text-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-amber: var(--amber);
+  --color-amber-bg: var(--amber-bg);
+  --color-red: var(--red);
+  --color-red-bg: var(--red-bg);
+  --color-blue: var(--blue);
+  --color-blue-bg: var(--blue-bg);
+
+  /* Landing page section theme (see .theme-* below) */
+  --color-page: var(--page-bg);
+  --color-page-fg: var(--page-fg);
+  --color-page-muted: var(--page-muted);
+  --color-page-subtle: var(--page-subtle);
+  --color-page-line: var(--page-line);
+  --color-page-card: var(--page-card);
+  --color-page-card-2: var(--page-card-2);
+
+  --font-sans: var(--font-albert), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Small uppercase label, for card kickers and footer heads. */
+.label-caps {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Tabular figures so columns of numbers line up. */
+.nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+.drawer-in {
+  animation: drawer-in 0.2s ease-out;
+}
+
+/* Popovers (search, setup guide): a short fade with a slight rise. */
+@keyframes pop-in {
+  from {
+    transform: translateY(6px) scale(0.99);
+    opacity: 0;
+  }
+}
+.pop-in {
+  animation: pop-in 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.fade-in {
+  animation: fade-in 0.16s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .drawer-in,
+  .pop-in,
+  .fade-in {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Native details/summary used by the FAQ: hide the default marker. */
+details > summary {
+  list-style: none;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Range input used by the advance calculator. */
+input[type="range"].range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--brand) 0%,
+    var(--brand) var(--fill, 50%),
+    var(--line) var(--fill, 50%)
+  );
+  outline: none;
+}
+input[type="range"].range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  cursor: pointer;
+}
+input[type="range"].range::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  border: 3px solid var(--surface);
+  cursor: pointer;
+}
+
+/* ─── Landing page: section themes ─────────────────────────────────────
+ * Every section declares a theme, and the page and nav cross-fade as each
+ * one scrolls in (0.5s, cubic-bezier(0, 0, 0.6, 1)).
+ * The variables are registered so the wrapper can transition them and
+ * every child that reads them animates with it.
+ * ─────────────────────────────────────────────────────────────────── */
+@property --page-bg { syntax: "<color>"; inherits: true; initial-value: #171721; }
+@property --page-fg { syntax: "<color>"; inherits: true; initial-value: #ededf3; }
+@property --page-muted { syntax: "<color>"; inherits: true; initial-value: #a6a6b4; }
+@property --page-subtle { syntax: "<color>"; inherits: true; initial-value: #74748a; }
+@property --page-line { syntax: "<color>"; inherits: true; initial-value: #2c2c3a; }
+@property --page-card { syntax: "<color>"; inherits: true; initial-value: #1f1f2b; }
+@property --page-card-2 { syntax: "<color>"; inherits: true; initial-value: #272735; }
+
+.theme-dark {
+  --page-bg: #171721;
+  --page-fg: #ededf3;
+  --page-muted: #a6a6b4;
+  --page-subtle: #74748a;
+  --page-line: #2c2c3a;
+  --page-card: #1f1f2b;
+  --page-card-2: #272735;
+}
+.theme-beige {
+  --page-bg: #f6f5f2;
+  --page-fg: #1e1e2a;
+  --page-muted: #5d5e66;
+  --page-subtle: #8b8c93;
+  --page-line: #e2e0d9;
+  --page-card: #ffffff;
+  --page-card-2: #eeece6;
+}
+.theme-neutral {
+  --page-bg: #fbfbfa;
+  --page-fg: #1e1e2a;
+  --page-muted: #5d5e66;
+  --page-subtle: #8b8c93;
+  --page-line: #e6e6e3;
+  --page-card: #f2f2ef;
+  --page-card-2: #e9e9e5;
+}
+
+.page-themed {
+  background: var(--page-bg);
+  color: var(--page-fg);
+  transition:
+    --page-bg 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-fg 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-muted 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-subtle 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-line 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-card 0.5s cubic-bezier(0, 0, 0.6, 1),
+    --page-card-2 0.5s cubic-bezier(0, 0, 0.6, 1);
+}
+
+/* Headings at a 480 display weight. Albert Sans is a variable font. */
+.display {
+  font-weight: 480;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Scroll reveal ────────────────────────────────────────────────────
+ * A 50px rise with a fade, 670ms, with a slight overshoot.
+ * Only when JavaScript runs and motion is allowed.
+ * ─────────────────────────────────────────────────────────────────── */
+@keyframes reveal-rise {
+  from { translate: 0 50px; }
+  to { translate: 0 0; }
+}
+@keyframes reveal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html.js .reveal:not([data-shown]) {
+    opacity: 0;
+    translate: 0 50px;
+  }
+  html.js .reveal[data-shown] {
+    animation:
+      reveal-rise 0.67s cubic-bezier(0.28, 1.1, 0.74, 1) both,
+      reveal-fade 0.67s cubic-bezier(0.59, 0.41, 0.68, 0.49) both;
+    animation-delay: var(--reveal-delay, 0ms);
+  }
+}
+
+/* ─── Tabbed panels (the landing page product tour) ────────────────── */
+@keyframes tab-in {
+  from { opacity: 0; translate: 0 5px; }
+  to { opacity: 1; translate: 0 0; }
+}
+@keyframes blur-out {
+  from { opacity: 1; filter: blur(0); }
+  to { opacity: 0; filter: blur(4px); }
+}
+.tab-in {
+  animation: tab-in 0.3s ease-in-out both;
+}
+.blur-out {
+  animation: blur-out 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-in,
+  .blur-out {
+    animation: none;
+  }
+}
+
+/* ─── Buttons: soft glow that follows the cursor ───────────────────── */
+.btn-glow {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(90px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, 0.32), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0, 0, 0.2, 1);
+}
+.btn-glow:hover::after {
+  opacity: 1;
+}
+
+/* Frosted glass over the hero scene. */
+.glass {
+  background: rgba(175, 178, 206, 0.2);
+  border: 1px solid rgba(175, 178, 206, 0.36);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  transition: background-color 0.3s cubic-bezier(0, 0, 0.2, 1);
+}
+a.glass:hover,
+button.glass:hover {
+  background: rgba(175, 178, 206, 0.28);
 }

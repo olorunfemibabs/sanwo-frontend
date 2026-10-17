@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +40,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Kept local, not part of the product: internal briefs, design working files,
+# raw and draft media, and the asset-generation tooling. Only the logo SVGs
+# under design/ are published.
+/BRIEF.md
+/CONCEPT.md
+/design/*
+!/design/logo/
+/design/logo/*
+!/design/logo/*.svg
+/scripts/gen-image.mjs
+/scripts/gen-video.mjs
+/scripts/assets.mjs
+/scripts/normalize-art.mjs
