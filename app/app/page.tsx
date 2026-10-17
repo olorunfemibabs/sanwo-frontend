@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowDownRight,
   ArrowUpRight,
-  ChevronDown,
   ChevronRight,
   Droplets,
   FilePlus2,
@@ -17,7 +16,7 @@ import {
   Table2,
   Wallet,
 } from "lucide-react";
-import { ActivityTable, PoolChart, poolFlows, utilization } from "@/components/app/shared";
+import { ActivityTable, MenuSelect, PoolChart, poolFlows, utilization } from "@/components/app/shared";
 import { ConnectOptions } from "@/components/app/ConnectOptions";
 import { LogoTile } from "@/components/brand/Logo";
 import { Amount, Card, CardFooter, CardHeader, Money, buttonClass } from "@/components/ui/primitives";
@@ -421,7 +420,9 @@ function BalanceCard() {
       </div>
 
       <div className="flex items-center justify-between gap-3 px-5 pt-2 text-[15px]">
-        <PeriodPicker value={period} onChange={setPeriod} />
+        <div className="-ml-2">
+          <MenuSelect value={period} options={PERIODS} onChange={setPeriod} />
+        </div>
         <span className="nums flex items-center gap-3 text-ink">
           <span className="flex items-center gap-1" title="Deposits and repayments">
             <ArrowUpRight className="h-4 w-4 text-brand" />
@@ -453,55 +454,6 @@ function BalanceCard() {
         )}
       </div>
     </Card>
-  );
-}
-
-function PeriodPicker({ value, onChange }: { value: PeriodId; onChange: (v: PeriodId) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative -ml-2">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex h-8 items-center gap-1.5 rounded-full px-2 text-ink transition-colors hover:bg-[rgba(112,115,147,0.08)]"
-      >
-        {PERIODS.find((p) => p.id === value)!.label}
-        <ChevronDown className="h-4 w-4 text-text-2" />
-      </button>
-      {open && (
-        <div className="pop-in absolute left-0 z-30 mt-1 w-44 rounded-xl bg-surface p-1 shadow-[0_0_2px_rgba(175,178,206,0.56),0_8px_24px_-8px_rgba(4,4,52,0.18)]">
-          {PERIODS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                onChange(p.id);
-                setOpen(false);
-              }}
-              className={cn(
-                "block w-full rounded-lg px-3 py-2 text-left text-[14px] hover:bg-[rgba(112,115,147,0.06)]",
-                p.id === value ? "text-brand" : "text-ink",
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

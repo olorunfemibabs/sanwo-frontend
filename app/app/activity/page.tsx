@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import { Download, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
-import { ActivityTable, EVENT_META, poolDelta, poolFlows } from "@/components/app/shared";
+import { ActivityTable, EVENT_META, MenuSelect, poolDelta, poolFlows } from "@/components/app/shared";
 import { Money, buttonClass } from "@/components/ui/primitives";
 import { useWallet } from "@/context/WalletContext";
 import { TOKEN_SYMBOL } from "@/lib/config";
 import type { ActivityEvent, ActivityKind } from "@/lib/contracts";
-import { useActivity } from "@/lib/hooks";
-import { cn, fromUnits } from "@/lib/utils";
+import { useActivity, useNow } from "@/lib/hooks";
+import { cn, fromUnits, parseDate, toDateInput } from "@/lib/utils";
 
 const TYPES: { id: ActivityKind | "all"; label: string }[] = [
   { id: "all", label: "All" },
@@ -19,12 +19,31 @@ const TYPES: { id: ActivityKind | "all"; label: string }[] = [
   { id: "withdrawn", label: "Withdrawals" },
 ];
 
+const RANGES = [
+  { id: "7d", label: "Last 7 days", days: 7 },
+  { id: "30d", label: "Last 30 days", days: 30 },
+  { id: "90d", label: "Last 90 days", days: 90 },
+  { id: "all", label: "All time", days: 0 },
+  { id: "custom", label: "Custom range", days: 0 },
+] as const;
+type RangeId = (typeof RANGES)[number]["id"];
+
+const SORTS = [
+  { id: "newest", label: "Newest first" },
+  { id: "oldest", label: "Oldest first" },
+  { id: "largest", label: "Largest amount" },
+  { id: "smallest", label: "Smallest amount" },
+] as const;
+type SortId = (typeof SORTS)[number]["id"];
+
+const DAY = 86_400_000;
 const PAGE = 25;
 
 /**
- * Every pool and receivables event: filters across the top, net change
- * with money in and out, then the full table. Every row is a contract event
- * read from Stellar.
+ * Every pool and receivables event since deployment: filters, a date range
+ * and sorting across the top, net change with money in and out, then the
+ * full table. History is kept by /api/activity, so it reaches back past the
+ * RPC's seven days.
  */
 export default function ActivityPage() {
   const { wallet } = useWallet();
@@ -32,17 +51,36 @@ export default function ActivityPage() {
   const [type, setType] = useState<ActivityKind | "all">("all");
   const [mineOnly, setMineOnly] = useState(false);
   const [query, setQuery] = useState("");
+  const [range, setRange] = useState<RangeId>("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [sort, setSort] = useState<SortId>("newest");
   const [shown, setShown] = useState(PAGE);
+  const now = useNow();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (activity.data ?? []).filter(
-      (e) =>
+    // Date bounds in ms; a custom range covers both whole days.
+    const days = RANGES.find((r) => r.id === range)!.days;
+    const lo = range === "custom" ? (from ? parseDate(from).getTime() : -Infinity) : days && now ? now - days * DAY : -Infinity;
+    const hi = range === "custom" && to ? parseDate(to).getTime() + DAY : Infinity;
+    const rows = (activity.data ?? []).filter((e) => {
+      const t = parseDate(e.at).getTime();
+      return (
+        t >= lo &&
+        t < hi &&
         (type === "all" || e.kind === type) &&
         (!mineOnly || e.actor === wallet.publicKey) &&
-        (!q || `${e.txHash} ${e.actor} ${fromUnits(e.amount)}`.toLowerCase().includes(q)),
-    );
-  }, [activity.data, type, mineOnly, query, wallet.publicKey]);
+        (!q || `${e.txHash} ${e.actor} ${fromUnits(e.amount)}`.toLowerCase().includes(q))
+      );
+    });
+    const byAmount = (a: ActivityEvent, b: ActivityEvent) => (a.amount < b.amount ? -1 : a.amount > b.amount ? 1 : 0);
+    if (sort === "oldest") rows.sort((a, b) => a.ledger - b.ledger);
+    else if (sort === "largest") rows.sort((a, b) => byAmount(b, a) || b.ledger - a.ledger);
+    else if (sort === "smallest") rows.sort((a, b) => byAmount(a, b) || b.ledger - a.ledger);
+    else rows.sort((a, b) => b.ledger - a.ledger);
+    return rows;
+  }, [activity.data, type, mineOnly, query, wallet.publicKey, range, from, to, sort, now]);
 
   const { moneyIn, moneyOut } = poolFlows(filtered);
   const net = moneyIn - moneyOut;
@@ -101,6 +139,59 @@ export default function ActivityPage() {
         >
           Yours only
         </button>
+        <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
+        <MenuSelect
+          variant="pill"
+          label="Date"
+          value={range}
+          options={RANGES}
+          onChange={(r) => {
+            setRange(r);
+            if (r === "custom" && !from) {
+              // Start from the last 30 days; either end can be changed.
+              setFrom(toDateInput(new Date(Date.now() - 30 * DAY)));
+              setTo(toDateInput(new Date()));
+            }
+            resetPaging();
+          }}
+        />
+        {range === "custom" && (
+          <span className="flex items-center gap-1.5 text-[14px] text-text-2">
+            <input
+              type="date"
+              aria-label="From"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                resetPaging();
+              }}
+              className="h-8 rounded-lg border border-line bg-transparent px-2 text-ink outline-none focus:border-brand"
+            />
+            to
+            <input
+              type="date"
+              aria-label="To"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => {
+                setTo(e.target.value);
+                resetPaging();
+              }}
+              className="h-8 rounded-lg border border-line bg-transparent px-2 text-ink outline-none focus:border-brand"
+            />
+          </span>
+        )}
+        <MenuSelect
+          variant="pill"
+          label="Sort"
+          value={sort}
+          options={SORTS}
+          onChange={(v) => {
+            setSort(v);
+            resetPaging();
+          }}
+        />
         <label className="flex h-8 w-full items-center gap-2 rounded-lg border border-line px-3 text-[14px] focus-within:border-brand sm:ml-auto sm:w-64">
           <Search className="h-4 w-4 shrink-0 text-muted" />
           <input
@@ -140,6 +231,12 @@ export default function ActivityPage() {
             </dd>
           </div>
         ))}
+        <div className="self-end sm:ml-auto">
+          <dt className="sr-only">Transactions</dt>
+          <dd className="text-[14px] text-text-2">
+            {activity.data ? `${filtered.length} transaction${filtered.length === 1 ? "" : "s"}` : " "}
+          </dd>
+        </div>
       </dl>
 
       <div className="mt-2">

@@ -57,7 +57,7 @@ advance or transaction.
 | `/app/advance` | Finance an invoice: details, automated checks, review, payout |
 | `/app/advances` | Your advances, with a detail panel, timeline and repayment |
 | `/app/pool` | Deposit or withdraw, and your position |
-| `/app/activity` | Every pool and receivables event, with filters and CSV export |
+| `/app/activity` | Every pool and receivables event since deployment, with filters, date ranges, sorting and CSV export |
 
 ## Run it
 
@@ -97,15 +97,28 @@ custom domain for link previews; otherwise the production domain is used.
 Requires `@stellar/stellar-sdk` 17 or later. Testnet runs protocol 29, and older
 SDKs fail to decode some of its responses.
 
-## Limits of event history
+## Activity history
 
 Balances, the pool's running totals and each advance's status are read straight
-from the contracts, so they are always complete. Activity, charts and recent
-transactions come from contract events, and the public testnet RPC keeps only
-about seven days of them. After a quiet week the activity lists are empty and
-the charts show the live balance as a flat line. Run a fresh loop shortly before
-sharing the demo. Reads page forward through at most 16 pages of 200 events; a
-durable indexer replaces this in v1.
+from the contracts. Activity, charts and recent transactions come from contract
+events, and the public testnet RPC keeps only about seven days of them, so the
+app keeps its own copy:
+
+- `app/api/activity` returns every pool and receivables event since deployment.
+  On each call, `lib/activity-store.ts` reads the stored history, fetches any
+  newer events from the RPC, and saves the file again when something changed.
+- On Vercel the history is one JSON file in a private Vercel Blob store. Connect
+  the store to the project and Vercel adds `BLOB_STORE_ID`; nothing else is
+  needed. A daily cron in `vercel.json` runs the same sync, so history is
+  captured even if nobody opens the app for a week.
+- In local development without Blob credentials, the file is kept in
+  `.next/cache/sanwo-activity/`.
+- The Activity page filters by type, wallet and date range (7, 30 or 90 days,
+  all time, or custom dates), and sorts by date or amount.
+
+The sync must run at least once within seven days of a deployment to capture
+its first events; after that, any gap longer than the RPC window is reported as
+incomplete rather than hidden.
 
 ## Design and assets
 

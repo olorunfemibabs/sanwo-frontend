@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, Check, ChevronDown, Loader2 } from "lucide-react";
 import { Amount, Badge, Card } from "@/components/ui/primitives";
 import { ConnectOptions } from "@/components/app/ConnectOptions";
 import { TOKEN_SYMBOL } from "@/lib/config";
@@ -44,8 +44,8 @@ export function poolFlows(events: ActivityEvent[] | null, from = 0): { moneyIn: 
  * anchored to the live balance and walked backwards, so it stays correct
  * even when the oldest events fall outside the RPC's retention window. It
  * starts at `from` (or the first event, if later) and runs to now. With no
- * events in the window (the public RPC keeps about a week), it draws the
- * live balance flat, so a quiet pool never looks like it is still loading.
+ * events in the window, it draws the live balance flat, so a quiet pool
+ * never looks like it is still loading.
  */
 export function PoolChart({
   events,
@@ -151,7 +151,7 @@ export function ActivityTable({
   loading,
   highlight,
   limit = 8,
-  emptyText = "No recent activity. The public testnet RPC keeps about seven days of contract events.",
+  emptyText = "No activity yet.",
 }: {
   events: ActivityEvent[] | null;
   loading: boolean;
@@ -277,6 +277,88 @@ export function ActivityTable({
         </table>
       </div>
     </>
+  );
+}
+
+// ─── Dropdown ───────────────────────────────────────────────────────────────
+
+/**
+ * A small dropdown: the current choice with a chevron, opening a short menu.
+ * `plain` is borderless text (the balance card's period); `pill` matches the
+ * outlined filter pills.
+ */
+export function MenuSelect<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+  variant = "plain",
+}: {
+  value: T;
+  options: readonly { id: T; label: string }[];
+  onChange: (v: T) => void;
+  /** Shown before the value on pills, e.g. "Date". */
+  label?: string;
+  variant?: "plain" | "pill";
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current = options.find((o) => o.id === value)?.label ?? value;
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={cn(
+          "flex h-8 items-center gap-1.5 transition-colors duration-150",
+          variant === "plain"
+            ? "rounded-full px-2 text-ink hover:bg-[rgba(112,115,147,0.08)]"
+            : "rounded-lg border border-line px-3 text-[14px] text-ink hover:bg-[rgba(112,115,147,0.06)]",
+        )}
+      >
+        {label && <span className="text-text-2">{label}:</span>}
+        {current}
+        <ChevronDown className="h-4 w-4 text-text-2" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="pop-in absolute left-0 z-30 mt-1 min-w-44 rounded-xl bg-surface p-1 shadow-[0_0_2px_rgba(175,178,206,0.56),0_8px_24px_-8px_rgba(4,4,52,0.18)]"
+        >
+          {options.map((o) => (
+            <button
+              key={o.id}
+              role="menuitemradio"
+              aria-checked={o.id === value}
+              onClick={() => {
+                onChange(o.id);
+                setOpen(false);
+              }}
+              className={cn(
+                "block w-full whitespace-nowrap rounded-lg px-3 py-2 text-left text-[14px] hover:bg-[rgba(112,115,147,0.06)]",
+                o.id === value ? "text-brand" : "text-ink",
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

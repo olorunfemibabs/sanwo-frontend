@@ -236,6 +236,11 @@ export async function withdraw(
 }
 
 // ─── Activity (contract events) ─────────────────────────────────────────────
+//
+// The public RPC keeps about seven days of events. The app reads history from
+// /api/activity, which stores every event since deployment (see
+// lib/activity-store.ts) and falls back to the RPC alone when that is not
+// available, such as in local development without Blob credentials.
 
 const MAX_EVENT_PAGES = 16;
 
@@ -247,35 +252,10 @@ function ledgerFromCursor(cursor: string): number {
   }
 }
 
-/**
- * Every pool and receivables event since deployment, newest first. The RPC
- * scans a bounded ledger window per call, so this pages forward by cursor.
- */
-export async function getActivity(): Promise<ActivityEvent[]> {
-  const filters = [
-    { type: "contract" as const, contractIds: [POOL_CONTRACT_ID, RECEIVABLES_CONTRACT_ID] },
-  ];
-  const latest = (await server.getLatestLedger()).sequence;
+type RawEvent = Awaited<ReturnType<typeof server.getEvents>>["events"][number];
 
-  let page: Awaited<ReturnType<typeof server.getEvents>>;
-  try {
-    page = await server.getEvents({ startLedger: DEPLOY_LEDGER, filters, limit: 200 });
-  } catch {
-    // Deployment is older than RPC retention: start from what is retained.
-    page = await server.getEvents({
-      startLedger: Math.max(1, latest - 110_000),
-      filters,
-      limit: 200,
-    });
-  }
-
-  const raw = [...page.events];
-  for (let i = 0; i < MAX_EVENT_PAGES; i++) {
-    if (!page.cursor || ledgerFromCursor(page.cursor) >= page.latestLedger) break;
-    page = await server.getEvents({ cursor: page.cursor, filters, limit: 200 });
-    raw.push(...page.events);
-  }
-
+/** One activity row per transaction, from raw pool and receivables events. */
+function parseEvents(raw: RawEvent[]): ActivityEvent[] {
   const byTx = new Map<string, ActivityEvent>();
   for (const ev of raw) {
     const topic = ev.topic.map((t) => scValToNative(t));
@@ -330,4 +310,73 @@ export async function getActivity(): Promise<ActivityEvent[]> {
   }
 
   return [...byTx.values()].sort((a, b) => b.ledger - a.ledger);
+}
+
+/**
+ * Pool and receivables events from `fromLedger` onward, newest first, read
+ * from the RPC. The RPC scans a bounded ledger window per call, so this pages
+ * forward by cursor. `scannedTo` is the last ledger fully read; `gap` is true
+ * when `fromLedger` is older than the RPC still keeps.
+ */
+export async function fetchContractEvents(
+  fromLedger: number,
+): Promise<{ events: ActivityEvent[]; scannedTo: number; gap: boolean }> {
+  const filters = [
+    { type: "contract" as const, contractIds: [POOL_CONTRACT_ID, RECEIVABLES_CONTRACT_ID] },
+  ];
+  const { oldestLedger, latestLedger } = await server.getHealth();
+  const gap = fromLedger < oldestLedger;
+  const startLedger = Math.min(Math.max(fromLedger, oldestLedger), latestLedger);
+
+  let page = await server.getEvents({ startLedger, filters, limit: 200 });
+  const raw = [...page.events];
+  let scannedTo = page.latestLedger;
+  for (let i = 0; ; i++) {
+    if (!page.cursor || ledgerFromCursor(page.cursor) >= page.latestLedger) {
+      scannedTo = page.latestLedger;
+      break;
+    }
+    if (i === MAX_EVENT_PAGES) {
+      // Stop here; the next read continues from this ledger.
+      scannedTo = ledgerFromCursor(page.cursor) - 1;
+      break;
+    }
+    page = await server.getEvents({ cursor: page.cursor, filters, limit: 200 });
+    raw.push(...page.events);
+  }
+  return { events: parseEvents(raw), scannedTo, gap };
+}
+
+/** An activity event as JSON: amounts as strings, since JSON has no bigint. */
+export type StoredEvent = Omit<ActivityEvent, "amount" | "invoiceAmount"> & {
+  amount: string;
+  invoiceAmount?: string;
+};
+
+export function toStoredEvent(e: ActivityEvent): StoredEvent {
+  return { ...e, amount: e.amount.toString(), invoiceAmount: e.invoiceAmount?.toString() };
+}
+
+export function fromStoredEvent(e: StoredEvent): ActivityEvent {
+  return {
+    ...e,
+    amount: BigInt(e.amount),
+    invoiceAmount: e.invoiceAmount !== undefined ? BigInt(e.invoiceAmount) : undefined,
+  };
+}
+
+/** Every pool and receivables event since deployment, newest first. */
+export async function getActivity(): Promise<ActivityEvent[]> {
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch("/api/activity", { cache: "no-store" });
+      if (res.ok) {
+        const body = (await res.json()) as { events: StoredEvent[] };
+        return body.events.map(fromStoredEvent);
+      }
+    } catch {
+      // Fall through to the RPC.
+    }
+  }
+  return (await fetchContractEvents(DEPLOY_LEDGER)).events;
 }
